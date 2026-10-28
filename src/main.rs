@@ -3,16 +3,45 @@
 //Professor: Pedro Rocha Horchulhac
 //Materia: Programação Imperativa
 //Estudantes: Gustavo Fronza, Matheus Sommer 
-fn menu_interativo() {
+fn input(prompt: &str) -> String {
+    use std::io::{self, Write};
+    print!("{}", prompt);
+    io::stdout().flush().unwrap();
+    let mut input = String::new();
+    io::stdin().read_line(&mut input).expect("Falha ao ler a entrada");
+    input.trim().to_string()
+}
+fn input_int(prompt: &str) -> u16 {
+    loop {
+        let texto = input(prompt);
+        match texto.parse::<u16>() {
+            Ok(n) => return n,
+            Err(_) => println!("Valor inválido. Digite um número entre 0 e 65535."),
+        }
+    }
+}   
+
+fn menu_interativo() -> bool {
+    println!();
     println!("1. Criar estrutura");
-    println!("2. Editar  estrutura");
+    println!("2. Editar estrutura");
     println!("3. Apagar estrutura");
     println!("4. Listar estruturas");
     println!("5. Sair");
-
+ 
     let mut escolha = String::new();
-    std::io::stdin().read_line(&mut escolha).expect("Falha ao ler a entrada");
-    
+    match std::io::stdin().read_line(&mut escolha) {
+        Ok(0) => {
+            println!("Saindo...");
+            return false;
+        }
+        Ok(_) => {}
+        Err(erro) => {
+            println!("Falha ao ler a entrada: {erro}");
+            return false;
+        }
+    }
+ 
     match escolha.trim() {
         "1" => criar_estrutura(),
         "2" => editar_estrutura(),
@@ -20,9 +49,28 @@ fn menu_interativo() {
         "4" => listar_estruturas(),
         "5" => {
             println!("Saindo...");
-            return;
-        },
+            return false;
+        }
         _ => println!("Opção inválida!"),
+    }
+    true
+}
+
+struct Sistema {
+    usuarios: Vec<Usuario>,
+    grupos: Vec<Grupo>,
+    diretorios: Vec<Diretorio>,
+}
+
+impl Sistema{
+    fn new () -> Sistema {
+        Sistema
+        {
+            usuarios: Vec::new(),
+            grupos: Vec::new(),
+            diretorios: Vec::new(),
+        }
+
     }
 }
 
@@ -33,35 +81,32 @@ struct Permissao {
 }
 
 impl Permissao {
-    fn new(leitura_usuario: bool, escrita_usuario: bool, execucao_usuario: bool,
-           leitura_grupo: bool, escrita_grupo: bool, execucao_grupo: bool,
-           leitura_outros: bool, escrita_outros: bool, execucao_outros: bool) -> Permissao {
-        Permissao {
-            usuario: [leitura_usuario, escrita_usuario, execucao_usuario],
-            grupo: [leitura_grupo, escrita_grupo, execucao_grupo],
-            outros: [leitura_outros, escrita_outros, execucao_outros],
+    fn new(usuario: [bool; 3], grupo: [bool; 3], outros: [bool; 3]) -> Permissao {
+        Permissao{
+            usuario,
+            grupo,
+            outros,
         }
     }
-    fn octal(&self) -> u8 {
-        let mut octal = 0;
-        for (i, &perm) in self.usuario.iter().enumerate() {
-            if perm {
-                octal += 1 << (2 - i);
-            }
-        }
-        for (i, &perm) in self.grupo.iter().enumerate() {
-            if perm {
-                octal += 1 << (5 - i);
-            }
-        }
-        for (i, &perm) in self.outros.iter().enumerate() {
-            if perm {
-                octal += 1 << (8 - i);
-            }
-        }
-        octal
-    }
-}
+    fn octal(&self) -> u16 {
+        let mut valor_usuario = 0;
+        if self.usuario[0] { valor_usuario += 4; }
+        if self.usuario[1] { valor_usuario += 2; }
+        if self.usuario[2] { valor_usuario += 1; }
+
+        let mut valor_grupo = 0;
+        if self.grupo[0] { valor_grupo += 4; }
+        if self.grupo[1] { valor_grupo += 2; }
+        if self.grupo[2] { valor_grupo += 1; }
+
+        let mut valor_outros = 0;
+        if self.outros[0] { valor_outros += 4; }
+        if self.outros[1] { valor_outros += 2; }
+        if self.outros[2] { valor_outros += 1; }
+
+        valor_usuario * 100 + valor_grupo * 10 + valor_outros
+}    }
+
 struct Arquivo {
     nome: String,
     tamanho: u64,
@@ -101,12 +146,12 @@ impl Arquivo {
 struct Diretorio {
     nome: String,
     arquivos: Vec<Arquivo>,
-    permissoes: (Permissao, Permissao, Permissao),
+    permissoes: Permissao,
     uid_dono: u16
 }
 
 impl Diretorio{
-    fn new(nome: String, permissoes: (Permissao, Permissao, Permissao), uid_dono: u16) -> Diretorio {
+    fn new(nome: String, permissoes: Permissao, uid_dono: u16) -> Diretorio {
         Diretorio {
             nome,
             arquivos: Vec::new(),
@@ -115,29 +160,19 @@ impl Diretorio{
         }
     }
     fn adiciona_arquivo(&mut self, gid_grupo: u16, arquivo: Arquivo) {
-        if self.uid_dono == arquivo.uid_dono && self.permissoes.0[1] {
-            self.arquivos.push(arquivo);
-            println!("Arquivo adicionado com sucesso.");
-        } else if self.permissoes.1[1] && self.uid_dono != arquivo.uid_dono {
+        if arquivo.gid_grupo == gid_grupo {
             self.arquivos.push(arquivo);
             println!("Arquivo adicionado com sucesso.");
         } else {
-            println!("Permissão negada para adicionar arquivo.");
+            println!("Erro: O GID do arquivo não corresponde ao GID do diretório.");
         }
     }
     fn remover_arquivo(&mut self, nome_arquivo: &str) {
         if let Some(pos) = self.arquivos.iter().position(|x| x.nome == nome_arquivo) {
-            if self.uid_dono == self.arquivos[pos].uid_dono && self.permissoes.0[1] {
-                self.arquivos.remove(pos);
-                println!("Arquivo removido com sucesso.");
-            } else if self.permissoes.1[1] && self.uid_dono != self.arquivos[pos].uid_dono {
-                self.arquivos.remove(pos);
-                println!("Arquivo removido com sucesso.");
-            } else {
-                println!("Permissão negada para remover arquivo.");
-            }
+            self.arquivos.remove(pos);
+            println!("Arquivo '{}' removido com sucesso.", nome_arquivo);
         } else {
-            println!("Arquivo não encontrado.");
+            println!("Arquivo '{}' não encontrado.", nome_arquivo);
         }
     }
     fn listar_arquivos(&self) {
@@ -222,21 +257,51 @@ impl Grupo{
     }
 }
 
-fn criar_estrutura() {
-    println!("Função para criar estrutura ainda não implementada.");
+fn criar_estrutura(sistema: &mut Sistema ) {
+    println!("1. usuário    2. grupo    3. diretório    4. arquivo");
+    let mut escolha = String::new();
+    match std::io::stdin().read_line(&mut escolha) {
+        Ok(_) => {}
+        Err(erro) => {
+            println!("Falha ao ler a entrada: {erro}");
+            return;
+        }
+    }
+    match escolha.trim() {
+        "1" => 
+        {
+            let nome = input("Digite um nome do Usuário: ");
+            let uid = input_int("Digite o UID do Usuário: ");
+
+        if Sistema.usuarios.iter().any(|u| u.uid == uid) {
+            println!("Erro: Já existe um usuário com o mesmo UID.");
+            return;
+            }
+
+            Sistema.usuarios.push(Usuario::new(nome, uid));
+            println!("Usuário criado com sucesso.");
+        }
+
+        "2" =>
+        {
+            let nome = input("Nome do Grupo: ");
+            let gid = input_int("Digite um GID: ");
+            
+        }
+
+    }
 }
 fn editar_estrutura() {
-    println!("Função para editar estrutura ainda não implementada.");
+
 }
 fn apagar_estrutura() {
-    println!("Função para apagar estrutura ainda não implementada.");
+
 } 
 fn listar_estruturas() {
-    println!("Função para listar estruturas ainda não implementada.");
+
 }
 
 fn main() {
-    while True {
-        menu_interativo();
-    }
+    let mut sistema = Sistema::new();
+    while menu_interativo() {}
 }
