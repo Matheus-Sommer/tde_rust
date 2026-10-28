@@ -273,12 +273,12 @@ fn criar_estrutura(sistema: &mut Sistema ) {
             let nome = input("Digite um nome do Usuário: ");
             let uid = input_int("Digite o UID do Usuário: ");
 
-        if Sistema.usuarios.iter().any(|u| u.uid == uid) {
+        if sistema.usuarios.iter().any(|u| u.uid == uid) {
             println!("Erro: Já existe um usuário com o mesmo UID.");
             return;
             }
 
-            Sistema.usuarios.push(Usuario::new(nome, uid));
+            sistema.usuarios.push(Usuario::new(nome, uid));
             println!("Usuário criado com sucesso.");
         }
 
@@ -286,10 +286,39 @@ fn criar_estrutura(sistema: &mut Sistema ) {
         {
             let nome = input("Nome do Grupo: ");
             let gid = input_int("Digite um GID: ");
-            
+        
+        if sistema.grupos.iter().any(|g| g.gid == gid) {
+            println!("Erro: Já existe um grupo com o mesmo GID.");
+            return;
+            }
+            sistema.grupos.push(Grupo::new(nome, gid));
+    }
+        "3" =>
+        {
+            let nome = input("Nome do Diretório: ");
+            let uid = input_int("Digite o UID do dono do diretório: ");
+            let gid = input_int("Digite o GID do grupo do diretório: ");
+            let perm = input_int("Digite as permissões do diretório em octal (ex: 755): ").and_then(|s| permissao::from_octal(&s)) else {
+                println!("Permissões inválidas.");
+                return;
+            };
+            sistema.diretorios.push(Diretorio::new(nome, perm, uid));
+            println!("Diretório criado");
         }
 
-    }
+        "4" => 
+        {
+            let nome_dir = input("Digite o diretório de desitno: ");
+            let dir = sistema.diretorios.iter_mut().find(|d| d.nome == nome_dir);
+            let nome = input("Digite o nome do arquivo: ");
+            let tamanho = input_int("Digite o tamanho do arquivo (Em bytes): ");
+            let uid = input_int("Digite o UID do dono do arquivo: ");
+            let perm = input_int("Digite as permissões (em octal): ").and_then(|s| permissao::from_octal(&s)) else {
+                println!("Permissões inválidas.");
+                return;
+            };
+        }
+}
 }
 fn editar_estrutura() {
 
