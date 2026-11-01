@@ -3,6 +3,7 @@
 //Professor: Pedro Rocha Horchulhac
 //Materia: Programação Imperativa
 //Estudantes: Gustavo Fronza, Matheus Sommer 
+
 fn input(prompt: &str) -> String {
     use std::io::{self, Write};
     print!("{}", prompt);
@@ -21,7 +22,7 @@ fn input_int(prompt: &str) -> u16 {
     }
 }   
 
-fn menu_interativo() -> bool {
+fn menu_interativo(sistema: &mut Sistema) -> bool {
     println!();
     println!("1. Criar estrutura");
     println!("2. Editar estrutura");
@@ -43,17 +44,17 @@ fn menu_interativo() -> bool {
     }
  
     match escolha.trim() {
-        "1" => criar_estrutura(),
-        "2" => editar_estrutura(),
-        "3" => apagar_estrutura(),
-        "4" => listar_estruturas(),
-        "5" => {
-            println!("Saindo...");
-            return false;
-        }
-        _ => println!("Opção inválida!"),
+    "1" => criar_estrutura(sistema),
+    "2" => editar_estrutura(sistema),
+    "3" => apagar_estrutura(sistema),
+    "4" => listar_estruturas(sistema),
+    "5" => {
+        println!("Saindo...");
+        return false;
     }
-    true
+    _ => {println!("Opção inválida!")},
+}
+
 }
 
 struct Sistema {
@@ -105,7 +106,20 @@ impl Permissao {
         if self.outros[2] { valor_outros += 1; }
 
         valor_usuario * 100 + valor_grupo * 10 + valor_outros
-}    }
+}
+fn from_octal(s: &str) -> Option<Permissao> {
+        let d: Vec<u8> = s
+            .chars()
+            .map(|c| c.to_digit(8).map(|x| x as u8))
+            .collect::<Option<_>>()?;
+        if d.len() != 3 {
+            return None;
+        }
+        let bits = |n: u8| [(n & 4) != 0, (n & 2) != 0, (n & 1) != 0];
+        Some(Permissao::new(bits(d[0]), bits(d[1]), bits(d[2])))
+    }
+}    
+
 
 struct Arquivo {
     nome: String,
@@ -147,16 +161,18 @@ struct Diretorio {
     nome: String,
     arquivos: Vec<Arquivo>,
     permissoes: Permissao,
-    uid_dono: u16
+    uid_dono: u16,
+    gid_grupo: u16
 }
 
 impl Diretorio{
-    fn new(nome: String, permissoes: Permissao, uid_dono: u16) -> Diretorio {
+    fn new(nome: String, permissoes: Permissao, uid_dono: u16, gid_grupo: u16) -> Diretorio {
         Diretorio {
             nome,
             arquivos: Vec::new(),
             permissoes,
-            uid_dono
+            uid_dono,
+            gid_grupo
         }
     }
     fn adiciona_arquivo(&mut self, gid_grupo: u16, arquivo: Arquivo) {
@@ -257,7 +273,8 @@ impl Grupo{
     }
 }
 
-fn criar_estrutura(sistema: &mut Sistema ) {
+fn criar_estrutura(sistema: &mut Sistema) 
+{
     println!("1. usuário    2. grupo    3. diretório    4. arquivo");
     let mut escolha = String::new();
     match std::io::stdin().read_line(&mut escolha) {
@@ -267,7 +284,8 @@ fn criar_estrutura(sistema: &mut Sistema ) {
             return;
         }
     }
-    match escolha.trim() {
+    match escolha.trim() 
+    {
         "1" => 
         {
             let nome = input("Digite um nome do Usuário: ");
@@ -298,11 +316,11 @@ fn criar_estrutura(sistema: &mut Sistema ) {
             let nome = input("Nome do Diretório: ");
             let uid = input_int("Digite o UID do dono do diretório: ");
             let gid = input_int("Digite o GID do grupo do diretório: ");
-            let perm = input_int("Digite as permissões do diretório em octal (ex: 755): ").and_then(|s| permissao::from_octal(&s)) else {
-                println!("Permissões inválidas.");
-                return;
-            };
-            sistema.diretorios.push(Diretorio::new(nome, perm, uid));
+            let Some(perm) = Permissao::from_octal(&input("Permissões em octal (ex: 755): ")) else {
+    println!("Permissões inválidas.");
+    return;
+};
+            sistema.diretorios.push(Diretorio::new(nome, perm, uid, gid));
             println!("Diretório criado");
         }
 
@@ -313,24 +331,47 @@ fn criar_estrutura(sistema: &mut Sistema ) {
             let nome = input("Digite o nome do arquivo: ");
             let tamanho = input_int("Digite o tamanho do arquivo (Em bytes): ");
             let uid = input_int("Digite o UID do dono do arquivo: ");
-            let perm = input_int("Digite as permissões (em octal): ").and_then(|s| permissao::from_octal(&s)) else {
+            let Some(perm) = Permissao::from_octal(&input("Permissões em octal (ex: 755): ")) else {
                 println!("Permissões inválidas.");
                 return;
             };
+            let gid = input_int("Digite o GID do grupo do arquivo: ");
+            dir.map(|d| d.adiciona_arquivo(gid, Arquivo::new(nome, tamanho as u64, perm, uid, gid)));
         }
-}
-}
-fn editar_estrutura() {
+        _ => 
+        {
+            println!("Opção inválida!");
+        }
+
+    }
 
 }
-fn apagar_estrutura() {
+
+fn editar_estrutura(sistema: &mut Sistema) {
+
+}
+fn apagar_estrutura(sistema: &mut Sistema) {
 
 } 
-fn listar_estruturas() {
-
+fn listar_estruturas(sistema: &Sistema) 
+{
+    println!("--- Usuários ---");
+    for u in &sistema.usuarios {
+        println!("{} (UID {})", u.nome, u.uid);
+        u.listar_grupos();
+    }
+    println!("--- Grupos ---");
+    for g in &sistema.grupos {
+        println!("{} (GID {})", g.nome, g.gid);
+        g.listar_membros();
+    }
+    println!("--- Diretórios ---");
+    for d in &sistema.diretorios {
+        println!("{} [{}] dono={} grupo={}", d.nome, d.permissoes.octal(), d.uid_dono, d.gid_grupo);
+        d.listar_arquivos();
+    }
 }
-
 fn main() {
     let mut sistema = Sistema::new();
-    while menu_interativo() {}
+    while menu_interativo(&mut sistema) {}
 }
