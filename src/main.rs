@@ -94,8 +94,6 @@ impl Permissao {
         }
     }
 }
-
-// Um nome curto para a tupla (dono, grupo, outros).
 type Permissoes = (Permissao, Permissao, Permissao);
 
 fn ler_permissoes() -> Permissoes {
@@ -118,7 +116,6 @@ impl Arquivo {
         Self {
             nome,
             tamanho,
-            // Todo arquivo novo começa com permissão 644.
             permissoes: (
                 Permissao::new(true, true, false),
                 Permissao::new(true, false, false),
@@ -186,7 +183,6 @@ impl Diretorio {
     }
 
     fn permissao_para(&self, uid: u16) -> &Permissao {
-        // Como Diretorio não tem gid na tabela, usamos dono ou outros.
         if uid == self.uid_dono {
             &self.permissoes.0
         } else {
@@ -248,8 +244,6 @@ impl Sistema {
         }
     }
 }
-
-// Devolve uma cópia do UID. Assim o menu pode modificar o sistema depois.
 fn login(sistema: &Sistema) -> Option<u16> {
     loop {
         println!("\n--- Login ---");
