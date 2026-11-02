@@ -20,51 +20,18 @@ fn input_int(prompt: &str) -> u16 {
             Err(_) => println!("Valor inválido. Digite um número entre 0 e 65535."),
         }
     }
-}   
-
-fn menu_interativo(sistema: &mut Sistema) -> bool {
-    println!();
-    println!("1. Criar estrutura");
-    println!("2. Editar estrutura");
-    println!("3. Apagar estrutura");
-    println!("4. Listar estruturas");
-    println!("5. Sair");
- 
-    let mut escolha = String::new();
-    match std::io::stdin().read_line(&mut escolha) {
-        Ok(0) => {
-            println!("Saindo...");
-            return false;
-        }
-        Ok(_) => {}
-        Err(erro) => {
-            println!("Falha ao ler a entrada: {erro}");
-            return false;
-        }
-    }
- 
-    match escolha.trim() {
-    "1" => criar_estrutura(sistema),
-    "2" => editar_estrutura(sistema),
-    "3" => apagar_estrutura(sistema),
-    "4" => listar_estruturas(sistema),
-    "5" => {
-        println!("Saindo...");
-        return false;
-    }
-    _ => {println!("Opção inválida!")},
 }
-
-}
-
-struct Sistema {
+struct Sistema 
+{
     usuarios: Vec<Usuario>,
     grupos: Vec<Grupo>,
     diretorios: Vec<Diretorio>,
 }
 
-impl Sistema{
-    fn new () -> Sistema {
+impl Sistema
+{
+    fn new () -> Sistema 
+    {
         Sistema
         {
             usuarios: Vec::new(),
@@ -75,303 +42,332 @@ impl Sistema{
     }
 }
 
-struct Permissao {
-    usuario: [bool; 3],
-    grupo: [bool; 3],
-    outros: [bool; 3],
-}
-
-impl Permissao {
-    fn new(usuario: [bool; 3], grupo: [bool; 3], outros: [bool; 3]) -> Permissao {
-        Permissao{
-            usuario,
-            grupo,
-            outros,
-        }
-    }
-    fn octal(&self) -> u16 {
-        let mut valor_usuario = 0;
-        if self.usuario[0] { valor_usuario += 4; }
-        if self.usuario[1] { valor_usuario += 2; }
-        if self.usuario[2] { valor_usuario += 1; }
-
-        let mut valor_grupo = 0;
-        if self.grupo[0] { valor_grupo += 4; }
-        if self.grupo[1] { valor_grupo += 2; }
-        if self.grupo[2] { valor_grupo += 1; }
-
-        let mut valor_outros = 0;
-        if self.outros[0] { valor_outros += 4; }
-        if self.outros[1] { valor_outros += 2; }
-        if self.outros[2] { valor_outros += 1; }
-
-        valor_usuario * 100 + valor_grupo * 10 + valor_outros
-}
-fn from_octal(s: &str) -> Option<Permissao> {
-        let d: Vec<u8> = s
-            .chars()
-            .map(|c| c.to_digit(8).map(|x| x as u8))
-            .collect::<Option<_>>()?;
-        if d.len() != 3 {
-            return None;
-        }
-        let bits = |n: u8| [(n & 4) != 0, (n & 2) != 0, (n & 1) != 0];
-        Some(Permissao::new(bits(d[0]), bits(d[1]), bits(d[2])))
-    }
-}    
-
-
-struct Arquivo {
-    nome: String,
-    tamanho: u64,
-    permissoes: Permissao,
-    uid_dono: u16,
-    gid_grupo: u16,
-}
-impl Arquivo {
-    fn new(nome: String, tamanho: u64, permissoes: Permissao, uid_dono: u16, gid_grupo: u16) -> Arquivo {
-        Arquivo {
-            nome,
-            tamanho,
-            permissoes,
-            uid_dono,
-            gid_grupo,
-        }
-    }
-    fn alterar_permissoes(&mut self, novas_permissoes: Permissao) {
-        self.permissoes = novas_permissoes;
-    }
-    fn stat(&self) {
-        println!("Nome: {}", self.nome);
-        println!("Tamanho: {} bytes", self.tamanho);
-        println!("UID do dono: {}", self.uid_dono);
-        println!("GID do grupo: {}", self.gid_grupo);
-        println!("Permissões:");
-        println!("  Usuário - Leitura: {}, Escrita: {}, Execução: {}",
-                 self.permissoes.usuario[0], self.permissoes.usuario[1], self.permissoes.usuario[2]);
-        println!("  Grupo - Leitura: {}, Escrita: {}, Execução: {}",
-                 self.permissoes.grupo[0], self.permissoes.grupo[1], self.permissoes.grupo[2]);
-        println!("  Outros - Leitura: {}, Escrita: {}, Execução: {}",
-                 self.permissoes.outros[0], self.permissoes.outros[1], self.permissoes.outros[2]);
-    }
-}
-
-
-struct Diretorio {
-    nome: String,
-    arquivos: Vec<Arquivo>,
-    permissoes: Permissao,
-    uid_dono: u16,
-    gid_grupo: u16
-}
-
-impl Diretorio{
-    fn new(nome: String, permissoes: Permissao, uid_dono: u16, gid_grupo: u16) -> Diretorio {
-        Diretorio {
-            nome,
-            arquivos: Vec::new(),
-            permissoes,
-            uid_dono,
-            gid_grupo
-        }
-    }
-    fn adiciona_arquivo(&mut self, gid_grupo: u16, arquivo: Arquivo) {
-        if arquivo.gid_grupo == gid_grupo {
-            self.arquivos.push(arquivo);
-            println!("Arquivo adicionado com sucesso.");
-        } else {
-            println!("Erro: O GID do arquivo não corresponde ao GID do diretório.");
-        }
-    }
-    fn remover_arquivo(&mut self, nome_arquivo: &str) {
-        if let Some(pos) = self.arquivos.iter().position(|x| x.nome == nome_arquivo) {
-            self.arquivos.remove(pos);
-            println!("Arquivo '{}' removido com sucesso.", nome_arquivo);
-        } else {
-            println!("Arquivo '{}' não encontrado.", nome_arquivo);
-        }
-    }
-    fn listar_arquivos(&self) {
-        println!("Arquivos no diretório '{}':", self.nome);
-        for arquivo in &self.arquivos {
-            arquivo.stat();
-        }
-    }
-}
-
 struct Usuario {
     nome: String,
     uid: u16,
     grupos_ids: Vec<u16>
 }
-impl Usuario{
-    fn new(nome: String, uid: u16) -> Usuario {
-        Usuario {
+impl Usuario
+{
+    fn new(nome: String, uid: u16) -> Usuario 
+    {
+        Usuario 
+        {
             nome,
             uid,
             grupos_ids: Vec::new()
         }
     }
-    fn adicionar_grupo(&mut self, gid: u16) {
-        if !self.grupos_ids.contains(&gid) {
-            self.grupos_ids.push(gid);
-            println!("Grupo adicionado ao usuário com sucesso.");
-        } else {
-            println!("Usuário já pertence a este grupo.");
-        }
-    }
-    fn remover_grupo(&mut self, gid: u16) {
-        if let Some(pos) = self.grupos_ids.iter().position(|&x| x == gid) {
-            self.grupos_ids.remove(pos);
-            println!("Grupo removido do usuário com sucesso.");
-        } else {
-            println!("Usuário não pertence a este grupo.");
-        }
-    }
-    fn listar_grupos(&self) {
-        println!("Grupos do usuário '{}':", self.nome);
-        for gid in &self.grupos_ids {
-            println!("GID: {}", gid);
-        }
-    }
 }
 
-struct Grupo {
+
+struct Grupo 
+{
     nome: String,
     gid: u16,
     usuarios_ids: Vec<u16>
 }
-impl Grupo{
-    fn new(nome: String, gid: u16) -> Grupo {
-        Grupo {
+
+impl Grupo
+{
+    fn new(nome: String, gid: u16) -> Grupo 
+    {
+        Grupo 
+        {
             nome,
             gid,
             usuarios_ids: Vec::new()
         }
     }
-    fn adicionar_membro(&mut self, uid: u16) {
-        if !self.usuarios_ids.contains(&uid) {
-            self.usuarios_ids.push(uid);
-            println!("Usuário adicionado ao grupo com sucesso.");
-        } else {
-            println!("Usuário já pertence a este grupo.");
+}
+
+struct Diretorio {
+    nome: String,
+    arquivos: Vec<Arquivo>,
+    permissoes: (Permissao, Permissao, Permissao),
+    uid_dono: u16,
+}
+
+impl Diretorio {
+    fn new(
+        nome: String,
+        permissoes: (Permissao, Permissao, Permissao),
+        uid_dono: u16,
+    ) -> Self {
+        Self {
+            nome,
+            arquivos: Vec::new(),
+            permissoes,
+            uid_dono,
         }
     }
-    fn remover_membro(&mut self, uid: u16) {
-        if let Some(pos) = self.usuarios_ids.iter().position(|&x| x == uid) {
-            self.usuarios_ids.remove(pos);
-            println!("Usuário removido do grupo com sucesso.");
-        } else {
-            println!("Usuário não pertence a este grupo.");
+
+    fn adiciona_arquivo(&mut self, arquivo: Arquivo) {
+    self.arquivos.push(arquivo);
+}
+    fn remove_arquivo(&mut self, nome_arquivo: &str) {
+    let posicao = self.arquivos
+        .iter()
+        .position(|arquivo| arquivo.nome == nome_arquivo);
+
+    match posicao {
+        Some(indice) => {
+            self.arquivos.remove(indice);
+            println!("Arquivo '{}' apagado.", nome_arquivo);
         }
-    }
-    fn listar_membros(&self) {
-        println!("Membros do grupo '{}':", self.nome);
-        for uid in &self.usuarios_ids {
-            println!("UID: {}", uid);
-        }
+        None => println!("Arquivo '{}' não encontrado.", nome_arquivo),
     }
 }
 
-fn criar_estrutura(sistema: &mut Sistema) 
-{
-    println!("1. usuário    2. grupo    3. diretório    4. arquivo");
-    let mut escolha = String::new();
-    match std::io::stdin().read_line(&mut escolha) {
-        Ok(_) => {}
-        Err(erro) => {
-            println!("Falha ao ler a entrada: {erro}");
-            return;
+    fn listar_conteudo(&self) {
+    if self.arquivos.is_empty() {
+        println!("  Nenhum arquivo neste diretório.");
+        return;
+    }
+
+    for arquivo in &self.arquivos {
+        arquivo.stat();
+    }
+}
+}
+struct Arquivo {
+    nome: String,
+    tamanho: u64,
+    permissoes: (Permissao, Permissao, Permissao),
+    uid_dono: u16,
+    gid_grupo: u16,
+}
+impl Arquivo {
+    fn new(
+        nome: String,
+        tamanho: u64,
+        uid_dono: u16,
+        gid_grupo: u16,
+    ) -> Self {
+        Self {
+            nome,
+            tamanho,
+            permissoes: (
+                Permissao::new(true, true, false),
+                Permissao::new(true, false, false),
+                Permissao::new(true, false, false),
+            ),
+            uid_dono,
+            gid_grupo,
         }
     }
-    match escolha.trim() 
+
+    fn alterar_permissao(
+        &mut self,
+        permissoes: (Permissao, Permissao, Permissao),
+    ) {
+        self.permissoes = permissoes;
+    }
+    fn stat(&self) {
+    let (dono, grupo, outros) = &self.permissoes;
+    let mut simbolos = String::new();
+
+    for permissao in [dono, grupo, outros] {
+        simbolos.push(if permissao.leitura  { 'r' } else { '-' });
+        simbolos.push(if permissao.escrita  { 'w' } else { '-' });
+        simbolos.push(if permissao.execucao { 'x' } else { '-' });
+    }
+
+    println!("Arquivo: {}", self.nome);
+    println!("Tamanho: {} bytes", self.tamanho);
+    println!(
+        "Permissões: ({}{}{} / {})",
+        dono.octal(), grupo.octal(), outros.octal(), simbolos
+    );
+    println!("Uid: {}", self.uid_dono);
+    println!("Gid: {}", self.gid_grupo);
+}
+}
+
+struct Permissao {
+    leitura: bool,
+    escrita: bool,
+    execucao: bool,
+}
+
+impl Permissao {
+    fn new(leitura: bool, escrita: bool, execucao: bool) -> Self 
     {
-        "1" => 
-        {
-            let nome = input("Digite um nome do Usuário: ");
-            let uid = input_int("Digite o UID do Usuário: ");
-
-        if sistema.usuarios.iter().any(|u| u.uid == uid) {
-            println!("Erro: Já existe um usuário com o mesmo UID.");
-            return;
-            }
-
-            sistema.usuarios.push(Usuario::new(nome, uid));
-            println!("Usuário criado com sucesso.");
+        Self {
+            leitura,
+            escrita,
+            execucao,
         }
-
-        "2" =>
-        {
-            let nome = input("Nome do Grupo: ");
-            let gid = input_int("Digite um GID: ");
-        
-        if sistema.grupos.iter().any(|g| g.gid == gid) {
-            println!("Erro: Já existe um grupo com o mesmo GID.");
-            return;
-            }
-            sistema.grupos.push(Grupo::new(nome, gid));
-    }
-        "3" =>
-        {
-            let nome = input("Nome do Diretório: ");
-            let uid = input_int("Digite o UID do dono do diretório: ");
-            let gid = input_int("Digite o GID do grupo do diretório: ");
-            let Some(perm) = Permissao::from_octal(&input("Permissões em octal (ex: 755): ")) else {
-    println!("Permissões inválidas.");
-    return;
-};
-            sistema.diretorios.push(Diretorio::new(nome, perm, uid, gid));
-            println!("Diretório criado");
-        }
-
-        "4" => 
-        {
-            let nome_dir = input("Digite o diretório de desitno: ");
-            let dir = sistema.diretorios.iter_mut().find(|d| d.nome == nome_dir);
-            let nome = input("Digite o nome do arquivo: ");
-            let tamanho = input_int("Digite o tamanho do arquivo (Em bytes): ");
-            let uid = input_int("Digite o UID do dono do arquivo: ");
-            let Some(perm) = Permissao::from_octal(&input("Permissões em octal (ex: 755): ")) else {
-                println!("Permissões inválidas.");
-                return;
-            };
-            let gid = input_int("Digite o GID do grupo do arquivo: ");
-            dir.map(|d| d.adiciona_arquivo(gid, Arquivo::new(nome, tamanho as u64, perm, uid, gid)));
-        }
-        _ => 
-        {
-            println!("Opção inválida!");
-        }
-
     }
 
+    fn octal(&self) -> u8 
+    {
+        (self.leitura as u8) * 4 
+        + (self.escrita as u8) * 2
+        + (self.execucao as u8)
+    }
+
+    fn ler_permissao(para_quem: &str) -> Permissao 
+    {
+    loop {
+        println!("Permissão para {para_quem}");
+        let valor = input_int("Digite um número de 0 a 7: ");
+
+        if valor <= 7 {
+            let leitura = (valor & 4) != 0;
+            let escrita = (valor & 2) != 0;
+            let execucao = (valor & 1) != 0;
+
+            return Permissao::new(leitura, escrita, execucao);
+        }
+
+        println!("Permissão inválida. Tente novamente.");
+    }
+}
 }
 
-fn editar_estrutura(sistema: &mut Sistema) {
-
-}
-fn apagar_estrutura(sistema: &mut Sistema) {
-
-} 
-fn listar_estruturas(sistema: &Sistema) 
+fn criar_diretorio(sistema: &mut Sistema) 
 {
-    println!("--- Usuários ---");
-    for u in &sistema.usuarios {
-        println!("{} (UID {})", u.nome, u.uid);
-        u.listar_grupos();
+    let nome = input("Nome do diretório: ");
+    let uid_dono = input_int("UID do dono: ");
+
+    let dono = Permissao::ler_permissao("dono");
+    let grupo = Permissao::ler_permissao("grupo");
+    let outros = Permissao::ler_permissao("outros");
+    let permissoes = (dono, grupo, outros);
+
+    let diretorio = Diretorio::new(nome, permissoes, uid_dono);
+    sistema.diretorios.push(diretorio);
+
+    println!("Diretório criado.");
+}
+
+fn criar_arquivo(sistema: &mut Sistema) 
+{
+    if sistema.diretorios.is_empty() 
+    {
+        println!("Crie um diretório antes de criar um arquivo.");
+        return;
     }
-    println!("--- Grupos ---");
-    for g in &sistema.grupos {
-        println!("{} (GID {})", g.nome, g.gid);
-        g.listar_membros();
+
+    let nome_diretorio = input("Em qual diretório deseja criar o arquivo? ");
+
+    let Some(diretorio) = sistema.diretorios
+        .iter_mut()
+        .find(|d| d.nome == nome_diretorio)
+    else 
+    {
+        println!("Diretório não encontrado.");
+        return;
+    };
+
+    let nome = input("Nome do arquivo: ");
+
+    let tamanho = loop 
+    {
+        let texto = input("Tamanho em bytes: ");
+        match texto.parse::<u64>() {
+            Ok(valor) => break valor,
+            Err(_) => println!("Digite um tamanho válido em bytes."),
+        }
+    };
+
+    let uid = input_int("UID do dono: ");
+    let gid = input_int("GID do grupo: ");
+
+    let arquivo = Arquivo::new(nome, tamanho, uid, gid);
+    diretorio.adiciona_arquivo(arquivo);
+
+    println!("Arquivo criado no diretório '{}'.", diretorio.nome);
+}
+
+fn apagar_arquivo(sistema: &mut Sistema) {
+    if sistema.diretorios.is_empty() {
+        println!("Não há diretórios cadastrados.");
+        return;
     }
-    println!("--- Diretórios ---");
-    for d in &sistema.diretorios {
-        println!("{} [{}] dono={} grupo={}", d.nome, d.permissoes.octal(), d.uid_dono, d.gid_grupo);
-        d.listar_arquivos();
+
+    let nome_diretorio = input("Em qual diretório está o arquivo? ");
+
+    let Some(diretorio) = sistema.diretorios
+        .iter_mut()
+        .find(|d| d.nome == nome_diretorio)
+    else {
+        println!("Diretório não encontrado.");
+        return;
+    };
+
+    let nome_arquivo = input("Nome do arquivo que deseja apagar: ");
+    diretorio.remove_arquivo(&nome_arquivo);
+}
+fn listar_arquivos(sistema: &Sistema) {
+    if sistema.diretorios.is_empty() {
+        println!("Nenhum diretório cadastrado.");
+        return;
+    }
+
+    for diretorio in &sistema.diretorios {
+        println!("\nDiretório: {}", diretorio.nome);
+        diretorio.listar_conteudo();
     }
 }
+
+fn editar_arquivo(sistema: &mut Sistema)
+{
+    if sistema.diretorios.is_empty() {
+        println!("Nenhum diretório cadastrado.");
+        return;
+    }
+
+    let nome_diretorio = input("Em qual diretório está o arquivo? ");
+
+    let Some(diretorio) = sistema.diretorios
+        .iter_mut()
+        .find(|d| d.nome == nome_diretorio)
+    else {
+        println!("Diretório não encontrado.");
+        return;
+    };
+
+    let nome_arquivo = input("Nome do arquivo que deseja editar: ");
+
+    let Some(arquivo) = diretorio.arquivos
+        .iter_mut()
+        .find(|a| a.nome == nome_arquivo)
+    else {
+        println!("Arquivo não encontrado.");
+        return;
+    };
+
+    let dono = Permissao::ler_permissao("dono");
+    let grupo = Permissao::ler_permissao("grupo");
+    let outros = Permissao::ler_permissao("outros");
+
+    arquivo.alterar_permissao((dono, grupo, outros));
+    println!("Permissões do arquivo '{}' atualizadas.", arquivo.nome);
+}
+
 fn main() {
     let mut sistema = Sistema::new();
-    while menu_interativo(&mut sistema) {}
+
+    loop {
+        println!("\n1. Criar diretório");
+        println!("2. Criar arquivo");
+        println!("3. Editar arquivo");
+        println!("4. Apagar arquivo");
+        println!("5. Listar arquivos");
+        println!("6. Sair");
+
+        let opcao = input("Escolha uma opção: ");
+
+        match opcao.as_str() {
+            "1" => criar_diretorio(&mut sistema),
+            "2" => criar_arquivo(&mut sistema),
+            "3" => editar_arquivo(&mut sistema),
+            "4" => apagar_arquivo(&mut sistema),
+            "5" => listar_arquivos(&sistema),
+            "6" => break,
+            _ => println!("Opção inválida."),
+        }
+    }   
 }
